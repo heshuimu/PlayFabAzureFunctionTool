@@ -7,9 +7,10 @@ namespace PlayFab.Plugins.CloudScript
 {
 	using PlayFab.Json;
 	using System;
+	using System.IO;
 	using System.Collections.Generic;
-	using System.Net.Http;
 	using System.Threading.Tasks;
+	using Microsoft.AspNetCore.Http;
 
 	/// <summary>
 	/// Used for extracting the data fields incoming as payload to Azure Functions into their respective objects.
@@ -37,32 +38,31 @@ namespace PlayFab.Plugins.CloudScript
 		/// </summary>
 		/// <param name="request">The request incoming to an Azure Function from the PlayFab server</param>
 		/// <returns>A new populated <c>FunctionContext</c> instance</returns>
-		public static async Task<FunctionContext<TFunctionArgument>> Create(HttpRequestMessage request)
+		public static async Task<FunctionContext<TFunctionArgument>> Create(HttpRequest request)
 		{
-			using(var content = request.Content)
+			using var bodyReader = new StreamReader(request.Body);
+
+			var body = await bodyReader.ReadToEndAsync();
+			var contextInternal = PlayFabSimpleJson.DeserializeObject<FunctionContextInternal>(body);
+			var settings = new PlayFabApiSettings
 			{
-				var body = await content.ReadAsStringAsync();
-				var contextInternal = Json.PlayFabSimpleJson.DeserializeObject<FunctionContextInternal>(body);
-				var settings = new PlayFabApiSettings
-				{
-					TitleId = contextInternal.TitleAuthenticationContext.Id,
-					DeveloperSecretKey = Environment.GetEnvironmentVariable("PLAYFAB_DEV_SECRET_KEY", EnvironmentVariableTarget.Process)
-				};
+				TitleId = contextInternal.TitleAuthenticationContext.Id,
+				DeveloperSecretKey = Environment.GetEnvironmentVariable("PLAYFAB_DEV_SECRET_KEY", EnvironmentVariableTarget.Process)
+			};
 
-				var authContext = new PlayFabAuthenticationContext
-				{
-					EntityToken = contextInternal.TitleAuthenticationContext.EntityToken
-				};
+			var authContext = new PlayFabAuthenticationContext
+			{
+				EntityToken = contextInternal.TitleAuthenticationContext.EntityToken
+			};
 
-				return new FunctionContext<TFunctionArgument>()
-				{
-					ApiSettings = settings,
-					CallerEntityProfile = contextInternal.CallerEntityProfile,
-					FunctionArgument = contextInternal.FunctionArgument,
-					AuthenticationContext = authContext,
-					CurrentPlayerId = contextInternal.CallerEntityProfile.Lineage.TitlePlayerAccountId
-				};
-			}
+			return new FunctionContext<TFunctionArgument>()
+			{
+				ApiSettings = settings,
+				CallerEntityProfile = contextInternal.CallerEntityProfile,
+				FunctionArgument = contextInternal.FunctionArgument,
+				AuthenticationContext = authContext,
+				CurrentPlayerId = contextInternal.CallerEntityProfile.Lineage.TitlePlayerAccountId
+			};
 		}
 
 		private class FunctionContextInternal
@@ -107,33 +107,32 @@ namespace PlayFab.Plugins.CloudScript
 		/// </summary>
 		/// <param name="request">The request incoming to an Azure Function from the PlayFab server</param>
 		/// <returns>A new populated <c>FunctionPlayerPlayStreamContext</c> instance</returns>
-		public static async Task<FunctionPlayerPlayStreamContext<TFunctionArgument>> Create(HttpRequestMessage request)
+		public static async Task<FunctionPlayerPlayStreamContext<TFunctionArgument>> Create(HttpRequest request)
 		{
-			using(var content = request.Content)
+			using var bodyReader = new StreamReader(request.Body);
+
+			var body = await bodyReader.ReadToEndAsync();
+			var contextInternal = PlayFabSimpleJson.DeserializeObject<FunctionPlayerPlayStreamContextInternal>(body);
+			var settings = new PlayFabApiSettings
 			{
-				var body = await content.ReadAsStringAsync();
-				var contextInternal = PlayFabSimpleJson.DeserializeObject<FunctionPlayerPlayStreamContextInternal>(body);
-				var settings = new PlayFabApiSettings
-				{
-					TitleId = contextInternal.TitleAuthenticationContext.Id,
-					DeveloperSecretKey = Environment.GetEnvironmentVariable("PLAYFAB_DEV_SECRET_KEY", EnvironmentVariableTarget.Process)
-				};
+				TitleId = contextInternal.TitleAuthenticationContext.Id,
+				DeveloperSecretKey = Environment.GetEnvironmentVariable("PLAYFAB_DEV_SECRET_KEY", EnvironmentVariableTarget.Process)
+			};
 
-				var authContext = new PlayFabAuthenticationContext
-				{
-					EntityToken = contextInternal.TitleAuthenticationContext.EntityToken
-				};
+			var authContext = new PlayFabAuthenticationContext
+			{
+				EntityToken = contextInternal.TitleAuthenticationContext.EntityToken
+			};
 
-				return new FunctionPlayerPlayStreamContext<TFunctionArgument>()
-				{
-					ApiSettings = settings,
-					AuthenticationContext = authContext,
-					PlayStreamEventEnvelope = contextInternal.PlayStreamEventEnvelope,
-					PlayerProfile = contextInternal.PlayerProfile,
-					FunctionArgument = contextInternal.FunctionArgument,
-					CurrentPlayerId = contextInternal.PlayerProfile.PlayerId
-				};
-			}
+			return new FunctionPlayerPlayStreamContext<TFunctionArgument>()
+			{
+				ApiSettings = settings,
+				AuthenticationContext = authContext,
+				PlayStreamEventEnvelope = contextInternal.PlayStreamEventEnvelope,
+				PlayerProfile = contextInternal.PlayerProfile,
+				FunctionArgument = contextInternal.FunctionArgument,
+				CurrentPlayerId = contextInternal.PlayerProfile.PlayerId
+			};
 		}
 
 		private class FunctionPlayerPlayStreamContextInternal
@@ -174,32 +173,31 @@ namespace PlayFab.Plugins.CloudScript
 		/// </summary>
 		/// <param name="request">The request incoming to an Azure Function from the PlayFab server</param>
 		/// <returns>A new populated <c>FunctionTaskContext</c> instance</returns>
-		public static async Task<FunctionTaskContext<TFunctionArgument>> Create(HttpRequestMessage request)
+		public static async Task<FunctionTaskContext<TFunctionArgument>> Create(HttpRequest request)
 		{
-			using(var content = request.Content)
+			using var bodyReader = new StreamReader(request.Body);
+
+			var body = await bodyReader.ReadToEndAsync();
+			var contextInternal = PlayFabSimpleJson.DeserializeObject<FunctionTaskContextInternal>(body);
+			var settings = new PlayFabApiSettings
 			{
-				var body = await content.ReadAsStringAsync();
-				var contextInternal = PlayFabSimpleJson.DeserializeObject<FunctionTaskContextInternal>(body);
-				var settings = new PlayFabApiSettings
-				{
-					TitleId = contextInternal.TitleAuthenticationContext.Id,
-					DeveloperSecretKey = Environment.GetEnvironmentVariable("PLAYFAB_DEV_SECRET_KEY", EnvironmentVariableTarget.Process)
-				};
+				TitleId = contextInternal.TitleAuthenticationContext.Id,
+				DeveloperSecretKey = Environment.GetEnvironmentVariable("PLAYFAB_DEV_SECRET_KEY", EnvironmentVariableTarget.Process)
+			};
 
-				var authContext = new PlayFabAuthenticationContext
-				{
-					EntityToken = contextInternal.TitleAuthenticationContext.EntityToken
-				};
+			var authContext = new PlayFabAuthenticationContext
+			{
+				EntityToken = contextInternal.TitleAuthenticationContext.EntityToken
+			};
 
-				return new FunctionTaskContext<TFunctionArgument>()
-				{
-					ApiSettings = settings,
-					AuthenticationContext = authContext,
-					ScheduledTaskNameId = contextInternal.ScheduledTaskNameId,
-					EventHistory = contextInternal.EventHistory,
-					FunctionArgument = contextInternal.FunctionArgument
-				};
-			}
+			return new FunctionTaskContext<TFunctionArgument>()
+			{
+				ApiSettings = settings,
+				AuthenticationContext = authContext,
+				ScheduledTaskNameId = contextInternal.ScheduledTaskNameId,
+				EventHistory = contextInternal.EventHistory,
+				FunctionArgument = contextInternal.FunctionArgument
+			};
 		}
 
 		private class FunctionTaskContextInternal
