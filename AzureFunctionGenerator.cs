@@ -24,7 +24,7 @@ class AzureFunctionGenerator : ISourceGenerator
 			return;
 		}
 
-		context.AddSource("Logs", string.Join("\n", collector.Works.Select(a => a.ToString())));
+		context.AddSource("Logs", string.Join("\n", collector.Works.Select(a => a.GenerateMethodDelcaration())));
 	}
 
 	public void Initialize(GeneratorInitializationContext context)
@@ -42,44 +42,150 @@ class AzureFunctionGenerator : ISourceGenerator
 			{
 				var symbol = (IMethodSymbol)context.SemanticModel.GetDeclaredSymbol(methodDeclaration)!;
 
-				if(!symbol.IsStatic && !symbol.DeclaredAccessibility.IsAccessibleInSameAssembly())
-				{
-					return;
-				}
-
 				AttributeData? attrSymbol = symbol.GetAttributes()
-					.Where(a => a.AttributeClass?.ToDisplayString() == typeof(AzureFunctionAttribute).FullName)
-					.FirstOrDefault();
+					.FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == typeof(AzureFunctionAttribute).FullName);
 
-				if(attrSymbol == null)
+				if(attrSymbol == null || !symbol.DeclaredAccessibility.IsAccessibleInSameAssembly() || !symbol.IsAsync)
 				{
 					return;
 				}
 
-				Work work = new()
-				{
-					MethodName = $"{symbol.ContainingSymbol}.{symbol.Name}",
-					AzureFunctionName = attrSymbol.NamedArguments.Where(p => p.Key == nameof(AzureFunctionAttribute.Name)).Select(p => (string)p.Value.Value!).FirstOrDefault(),
-					ArgumentTypeName = symbol.Parameters.Skip(1).FirstOrDefault()?.Type.ToString(),
-					ReturnTypeName = symbol.ReturnsVoid ? null : symbol.ReturnType.ToString(),
-					DesiredAuthorizationLevel = attrSymbol.NamedArguments.Where(p => p.Key == nameof(AzureFunctionAttribute.AuthorizationLevel)).Select(p => (DummyAuthLevel)p.Value.Value!).FirstOrDefault(),
-					ShouldProvideLogger = false
-				};
+				Work work;
 
-				Works.Add(work);
+				var stringTypeSymbol = context.SemanticModel.Compilation.GetTypeByMetadataName(typeof(string).FullName)!;
+				var playfabServerTypeSymbol = context.SemanticModel.Compilation.GetTypeByMetadataName("PlayFab.PlayFabServerInstanceAPI")!;
+
+				Console.WriteLine(playfabServerTypeSymbol.ToString());
+				Console.WriteLine(stringTypeSymbol.ToString());
+
+				if(!symbol.IsStatic)
+				{
+					var containingClassSymbol = symbol.ContainingType;
+
+					if(containingClassSymbol.IsAbstract)
+					{
+						return;
+					}
+
+					bool hasParameterlessConstructor = containingClassSymbol.Constructors.Any(c => !c.IsStatic && c.Parameters.IsEmpty);
+
+					bool canSetServer = containingClassSymbol.GetMembers()
+						.OfType<IPropertySymbol>()
+						.Any(prop => !prop.IsStatic && prop.Name == "Server" && prop.SetMethod != null && SymbolEqualityComparer.Default.Equals(prop.Type, playfabServerTypeSymbol));
+					bool canSetCurrentPlayerID = containingClassSymbol.GetMembers()
+						.OfType<IPropertySymbol>()
+						.Any(prop => !prop.IsStatic && prop.Name == "CurrentPlayerID" && prop.SetMethod != null && SymbolEqualityComparer.Default.Equals(prop.Type, stringTypeSymbol));
+
+					if(hasParameterlessConstructor && canSetServer && canSetCurrentPlayerID)
+					{
+						work = new InstanceCallWork()
+						{
+							MethodName = symbol.Name,
+							ContainingClassName = containingClassSymbol.ToString(),
+							ArgumentTypeName = symbol.Parameters.FirstOrDefault()?.Type.ToString()
+						};
+
+						Works.Add(work);
+					}
+					else
+					{
+						return;
+					}
+				}
+				else
+				{
+					if(symbol.Parameters.Length >= 2
+					&& SymbolEqualityComparer.Default.Equals(symbol.Parameters[0].Type, playfabServerTypeSymbol)
+					&& SymbolEqualityComparer.Default.Equals(symbol.Parameters[1].Type, stringTypeSymbol))
+					{
+						work = new StaticCallWork()
+						{
+							MethodName = $"{symbol.ContainingSymbol}.{symbol.Name}",
+							ArgumentTypeName = symbol.Parameters.Skip(2).FirstOrDefault()?.Type.ToString(),
+						};
+
+						Works.Add(work);
+					}
+					else
+					{
+						return;
+					}
+				}
+
+
+				work.AzureFunctionName = attrSymbol.NamedArguments.Where(p => p.Key == nameof(AzureFunctionAttribute.Name)).Select(p => (string)p.Value.Value!).FirstOrDefault() ?? symbol.Name;
+				work.ReturnTypeName = symbol.ReturnsVoid ? null : symbol.ReturnType.ToString();
+				work.DesiredAuthorizationLevel = attrSymbol.NamedArguments.Where(p => p.Key == nameof(AzureFunctionAttribute.AuthorizationLevel)).Select(p => (DummyAuthLevel)p.Value.Value!).FirstOrDefault();
+				work.ShouldProvideLogger = false;
+
+				if(work.ReturnTypeName == typeof(Task).FullName)
+				{
+					work.ReturnTypeName = null;
+				}
 			}
 		}
 	}
 
-	private class Work
+	private abstract class Work
 	{
 		public string MethodName { get; set; } = "NONAME";
-		public string? AzureFunctionName { get; set; }
+		public string AzureFunctionName { get; set; } = "NONAME";
 		public string? ArgumentTypeName { get; set; }
 		public string? ReturnTypeName { get; set; }
 		public DummyAuthLevel? DesiredAuthorizationLevel { get; set; }
 
 		public bool ShouldProvideLogger { get; set; }
+		public abstract string GenerateMethodDelcaration();
+	}
+
+	private class StaticCallWork : Work
+	{
+		public override string GenerateMethodDelcaration()
+		{
+			throw new NotImplementedException();
+		}
+
+		public override string ToString() => $"static {ReturnTypeName ?? "void"} {MethodName}({ArgumentTypeName})";
+	}
+
+	private class InstanceCallWork : Work
+	{
+		public string ContainingClassName { get; set; } = "NONAME";
+
+		public override string GenerateMethodDelcaration()
+		{
+			return $@"
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.WebJobs;
+using Microsoft.Azure.WebJobs.Extensions.Http;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+using PlayFab.Plugins.CloudScript;
+using PlayFab;
+
+class GeneratedAzureFunction
+{{
+	[FunctionName(""{AzureFunctionName}"")]
+	public static async Task<IActionResult> {AzureFunctionName}_Generated([HttpTrigger(AuthorizationLevel.{DesiredAuthorizationLevel}, ""post"", Route = null)] HttpRequest req, ILogger log)
+	{{
+		{(ArgumentTypeName != null ? $"var functionContext = await FunctionContext<{ArgumentTypeName}>.Create(req);" : "var functionContext = await FunctionContext.Create(req);")}
+
+		PlayFabServerInstanceAPI server = new(functionContext.ApiSettings, functionContext.AuthenticationContext);
+		string currentPlayerID = functionContext.CurrentPlayerId;
+
+		{(ReturnTypeName != null ? "var result = " : null)}await new {ContainingClassName}()
+		{{
+			Server = server,
+			CurrentPlayerID = currentPlayerID
+		}}.{MethodName}({(ArgumentTypeName != null ? "functionContext.FunctionArgument" : null)});
+
+
+		{(ReturnTypeName != null ? "return new OkObjectResult(result);" : "return new OkResult();")}
+	}}
+}}
+			";
+		}
 
 		public override string ToString() => $"{ReturnTypeName ?? "void"} {MethodName}({ArgumentTypeName})";
 	}
