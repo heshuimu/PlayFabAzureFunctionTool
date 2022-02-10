@@ -84,8 +84,6 @@ class AzureFunctionGenerator : ISourceGenerator
 							ContainingClassName = containingClassSymbol.ToString(),
 							ArgumentTypeName = symbol.Parameters.FirstOrDefault()?.Type.ToString()
 						};
-
-						Works.Add(work);
 					}
 					else
 					{
@@ -103,8 +101,6 @@ class AzureFunctionGenerator : ISourceGenerator
 							MethodName = $"{symbol.ContainingSymbol}.{symbol.Name}",
 							ArgumentTypeName = symbol.Parameters.Skip(2).FirstOrDefault()?.Type.ToString(),
 						};
-
-						Works.Add(work);
 					}
 					else
 					{
@@ -122,6 +118,8 @@ class AzureFunctionGenerator : ISourceGenerator
 				{
 					work.ReturnTypeName = null;
 				}
+
+				Works.Add(work);
 			}
 		}
 	}
