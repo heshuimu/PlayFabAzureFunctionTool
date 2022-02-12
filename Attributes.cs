@@ -22,6 +22,6 @@ public class DefaultAuthorizationLevelAttribute : Attribute
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 public class AzureFunctionAttribute : Attribute
 {
-	public DummyAuthLevel? AuthorizationLevel { get; set; }
+	public DummyAuthLevel AuthorizationLevel { get; set; }
 	public string? Name { get; set; }
 }
