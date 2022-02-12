@@ -1,3 +1,6 @@
+// This file was copied and modified from https://github.com/PlayFab/CSharpSDK/blob/2d9a6faf3f7631c7e8ac989f1c5960ede2bae56d/Plugins/CloudScript/source/PlayFabFunctionContexts.cs
+// The license of the orginal source code is https://github.com/PlayFab/CSharpSDK/blob/2d9a6faf3f7631c7e8ac989f1c5960ede2bae56d/LICENSE
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /// THIS PLUGIN IS CURRENTLY IN A BETA STATE MEANT TO ONLY BE USED BY PRIVATE PREVIEW CUSTOMERS.
 /// DO NOT RELY ON THE FOLLOWING CODE FOR USE ALONGSIDE PRODUCTION READY CODE.
