@@ -44,6 +44,7 @@ Now, you can write methods for PlayFab logic. There are two styles available:
 Then annotate the method with `[AzureFunction]`. The boilerplate will be generated on the next build.
 
 **Note:**
+
 - Both async and sync methods are supported.
 
 - Return types can be anything as long as they are serializable by Azure Functions. Returning `void` is allowed.
