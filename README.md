@@ -2,7 +2,8 @@
 
 Generate Azure Functions boilerplate code to aid PlayFab server functions development
 
-***Note: These should work in theory. I have not actually tested the generated code. Use it at your own discretion. ***
+***Note: These should work in theory. I have not actually tested the generated code. Use it at your own discretion.***
+
 ***If you have any issues or feature requests, I won't be able to add it quickly, so feel free to fix/add it yourself. Pull request is optional and always appreciated***
 
 ## Motivation
@@ -35,15 +36,20 @@ using K4.AzureFunctions;
 ```
 
 Now, you can write methods for PlayFab logic. There are two styles available:
+
 1. Write the method as instance method in a class with two settable properties `PlayFabServerInstanceAPI Server` and `string CurrentPlayerID`.
-2. Write the method as static method in any class. The first two parameters must be of type `PlayFabServerInstanceAPI`  and `string`, for server API instance and current player ID, respectively.
+
+1. Write the method as static method in any class. The first two parameters must be of type `PlayFabServerInstanceAPI`  and `string`, for server API instance and current player ID, respectively.
 
 Then annotate the method with `[AzureFunction]`. The boilerplate will be generated on the next build.
 
 **Note:**
 - Both async and sync methods are supported.
+
 - Return types can be anything as long as they are serializable by Azure Functions. Returning `void` is allowed.
+
 - The first method parameters is treated as the input. The boilerplate will deserialize the JSON object in the HTTP request body into the type of that parameter.
+
 - If the last method parameter is of type `ILogger`, the boilerplate will pass the Azure Functions logger instance to you via the parameter.
 
 Refer to the following sample code:
@@ -135,5 +141,7 @@ class GeneratedAzureFunction
 ```
 
 ## Limitations
+
 1. This library is only for PlayFab development. It is not suitable for general Azure Functions development.
+
 2. Exceptions from business logics are currently uncaught.
