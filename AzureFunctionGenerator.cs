@@ -78,6 +78,7 @@ class GeneratedAzureFunction
 
 				var stringType = context.SemanticModel.Compilation.GetTypeByMetadataName(typeof(string).FullName)!;
 				var taskType = context.SemanticModel.Compilation.GetTypeByMetadataName(typeof(Task).FullName)!;
+				var genericTaskType = context.SemanticModel.Compilation.GetTypeByMetadataName(typeof(Task<>).FullName)!;
 				var loggerType = context.SemanticModel.Compilation.GetTypeByMetadataName("Microsoft.Extensions.Logging.ILogger")!;
 				var playfabServerType = context.SemanticModel.Compilation.GetTypeByMetadataName("PlayFab.PlayFabServerInstanceAPI")!;
 
@@ -134,9 +135,9 @@ class GeneratedAzureFunction
 					}
 				}
 
-				work.IsAsyncCall = method.IsAsync;
+				work.IsAsyncCall = method.IsAsync || SymbolEqualityComparer.Default.Equals(method.ReturnType, taskType) || SymbolEqualityComparer.Default.Equals(method.ReturnType.OriginalDefinition, genericTaskType);
 				work.AzureFunctionName = azureFunctionAttribute.NamedArguments.Where(p => p.Key == nameof(AzureFunctionAttribute.Name)).Select(p => (string)p.Value.Value!).FirstOrDefault() ?? method.Name;
-				work.ReturnTypeName = method.ReturnsVoid || SymbolEqualityComparer.Default.Equals(method.ReturnType, taskType) ? null : method.ReturnType.ToString();
+				work.ReturnsVoid = method.ReturnsVoid || SymbolEqualityComparer.Default.Equals(method.ReturnType, taskType);
 				work.DesiredAuthorizationLevel = azureFunctionAttribute.NamedArguments.Where(p => p.Key == nameof(AzureFunctionAttribute.AuthorizationLevel)).Select(p => (DummyAuthLevel)p.Value.Value!).FirstOrDefault();
 				work.ShouldProvideLogger = SymbolEqualityComparer.Default.Equals(method.Parameters.Last().Type, loggerType);
 
@@ -150,7 +151,7 @@ class GeneratedAzureFunction
 		public string MethodName { get; set; } = "NONAME";
 		public string AzureFunctionName { get; set; } = "NONAME";
 		public string? ArgumentTypeName { get; set; }
-		public string? ReturnTypeName { get; set; }
+		public bool ReturnsVoid { get; set; }
 		public DummyAuthLevel? DesiredAuthorizationLevel { get; set; }
 
 		public bool IsAsyncCall { get; set; }
@@ -168,9 +169,9 @@ $@"
 		PlayFabServerInstanceAPI server = new(functionContext.ApiSettings, functionContext.AuthenticationContext);
 		string currentPlayerID = functionContext.CurrentPlayerId;
 
-		{(ReturnTypeName != null ? "var result = " : null)}{(IsAsyncCall ? "await " : null)}{GenerateMethodCall()};
+		{(ReturnsVoid ? null : "var result = ")}{(IsAsyncCall ? "await " : null)}{GenerateMethodCall()};
 
-		{(ReturnTypeName != null ? "return new OkObjectResult(result);" : "return new OkResult();")}
+		{(ReturnsVoid ? "return new OkResult();" : "return new OkObjectResult(result);")}
 	}}
 ";
 
@@ -205,7 +206,7 @@ $@"
 	}
 }
 
-internal static class AccessibilityExtension
+internal static class RoslynExtension
 {
 	public static bool IsAccessibleInSameAssembly(this Accessibility a) => a == Accessibility.Internal || a == Accessibility.Public;
 }
