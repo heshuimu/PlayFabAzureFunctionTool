@@ -4,6 +4,7 @@ namespace K4.AzureFunctions;
 
 public enum DummyAuthLevel
 {
+	NotSpecified = 0,
 	Function,
 	Anonymous
 }

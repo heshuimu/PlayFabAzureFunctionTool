@@ -43,12 +43,17 @@ class GeneratedAzureFunction
 
 		foreach(Work w in collector.Works)
 		{
+			if(w.DesiredAuthorizationLevel == DummyAuthLevel.NotSpecified)
+			{
+				w.DesiredAuthorizationLevel = defaultAuthLevel;
+			}
+
 			builder.Append(w.GenerateMethodDelcaration());
 		}
 
 		builder.Append("}");
 
-		context.AddSource("AzureFunctions.g", string.Join("\n", builder.ToString()));
+		context.AddSource("AzureFunctions.g", builder.ToString());
 	}
 
 	public void Initialize(GeneratorInitializationContext context)
@@ -139,7 +144,7 @@ class GeneratedAzureFunction
 				work.AzureFunctionName = azureFunctionAttribute.NamedArguments.Where(p => p.Key == nameof(AzureFunctionAttribute.Name)).Select(p => (string)p.Value.Value!).FirstOrDefault() ?? method.Name;
 				work.ReturnsVoid = method.ReturnsVoid || SymbolEqualityComparer.Default.Equals(method.ReturnType, taskType);
 				work.DesiredAuthorizationLevel = azureFunctionAttribute.NamedArguments.Where(p => p.Key == nameof(AzureFunctionAttribute.AuthorizationLevel)).Select(p => (DummyAuthLevel)p.Value.Value!).FirstOrDefault();
-				work.ShouldProvideLogger = SymbolEqualityComparer.Default.Equals(method.Parameters.Last().Type, loggerType);
+				work.ShouldProvideLogger = SymbolEqualityComparer.Default.Equals(method.Parameters.LastOrDefault()?.Type, loggerType);
 
 				Works.Add(work);
 			}
@@ -152,7 +157,7 @@ class GeneratedAzureFunction
 		public string AzureFunctionName { get; set; } = "NONAME";
 		public string? ArgumentTypeName { get; set; }
 		public bool ReturnsVoid { get; set; }
-		public DummyAuthLevel? DesiredAuthorizationLevel { get; set; }
+		public DummyAuthLevel DesiredAuthorizationLevel { get; set; }
 
 		public bool IsAsyncCall { get; set; }
 		public bool ShouldProvideLogger { get; set; }
